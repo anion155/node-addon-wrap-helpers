@@ -1,0 +1,29 @@
+{
+  "name": "nawh",
+  "version": "0.1.0",
+  "description": "Node native addon POC wrap",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node tests/js/objects.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git"
+  },
+  "keywords": [
+    "node",
+    "addon",
+    "native",
+    "cpp",
+    "c++"
+  ],
+  "author": "Mikhaylov Anton <anion155@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "nan": "^2.10.0",
+    "node-qbs": "0.0.7"
+  }
+}
