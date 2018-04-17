@@ -37,7 +37,7 @@ template <typename _Functor, typename _Return, std::size_t ..._i, typename ..._A
   };
 }
 
-template <typename _Functor> struct lambda_traits : lambda_traits<decltype(&_Functor::operator())> {};
+template <typename _Functor> struct lambda_traits : lambda_traits<decltype (&_Functor::operator())> {};
 template <typename _Functor, typename _Return, typename ..._Args>
 struct lambda_traits<_Return(_Functor::*)(_Args...) const>
   : __hidden__::lambda_traits_impl<_Functor, _Return, std::index_sequence_for<_Args...>, _Args...>

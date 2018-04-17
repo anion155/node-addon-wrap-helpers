@@ -86,11 +86,11 @@ template <typename ...>
     info.GetReturnValue().Set(info.This());
   } NAWH_CATCH
 
-  static NAN_METHOD(construct_dummy) {
+  static NAN_METHOD(construct_dummy) NAWH_TRY {
     object_wrap *obj = new object_wrap();
     obj->Wrap(info.This());
     info.GetReturnValue().Set(info.This());
-  }
+  } NAWH_CATCH
 
 public:
   static v8::Local<v8::Object> handle(_Wrapper *wrap) {
@@ -196,6 +196,12 @@ template <typename _Type, _Type _function>
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }
+#ifdef __cpp_template_auto
+template <auto _method>
+  object_wrap_helper *method(const std::string &name) {
+    return method<decltype (_method), _method>(name);
+  }
+#endif
 template <typename _Functor>
   typename std::enable_if<
       nawh::is_lambda<_Functor>::value, object_wrap_helper *

@@ -2,7 +2,8 @@ import qbs
 import Node
 
 Node.AddonProduct {
-    cpp.cxxLanguageVersion: "c++14"
+    Depends { name: 'cpp' }
+    cpp.cxxLanguageVersion: 'c++17'
     Depends { name: 'NAWHLib' }
 
     files: [

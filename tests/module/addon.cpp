@@ -4,20 +4,20 @@
 enum B { };
 
 static std::string world() { return "world"; }
-static std::string world2() { return "world2"; }
+static std::string world2(int a) { return "world2 " + std::to_string(a); }
 
 class A : public nawh::object_wrap {
 public:
   A() { }
-  A(A&&);
-  A(int a);
-  A(double a);
-  A(std::string a);
-  A(double a, int b);
+  A(A&&) { }
+  A(int) { }
+  A(double) { }
+  A(std::string) { }
+  A(double, int) { }
   ~A();
 
-  std::string hello(int a) { return "hello " + std::to_string(a); }
-  std::string hello2() { return "hello2"; }
+  std::string hello() { return "hello"; }
+  std::string hello2(int a) { return "hello2 " + std::to_string(a); }
 
   static void class_template(nawh::object_wrap_helper<A> *wrap) {
     wrap
@@ -26,12 +26,17 @@ public:
         ->constructor<int>()
         ->constructor<std::string>()
         ->constructor<double, int>()
-        ->method<decltype(&A::hello), &A::hello>("hello")
-        ->method<decltype(&A::hello2), &A::hello2>("hello2")
-        ->method<decltype(&world), &world>("world")
-        ->method<decltype(&world2), &world2>("world2")
+        ->method<decltype (&A::hello), &A::hello>("hello")
+        ->method<decltype (&world), &world>("world")
+    #ifdef __cpp_template_auto
+        ->method<&A::hello2>("hello2")
+        ->method<&world2>("world2")
+    #else
+        ->method<decltype (&A::hello2), &A::hello2>("hello2")
+        ->method<decltype (&world2), &world2>("world2")
+    #endif
         ->method_lambda([]() { return "lambda"; }, "lambda")
-        ->method_lambda([]() { return "lambda2"; }, "lambda2")
+        ->method_lambda([](int a) { return "lambda2 " + std::to_string(a); }, "lambda2")
         ;
   }
 };
@@ -39,8 +44,8 @@ A::~A() { }
 
 class BC : public nawh::object_wrap {
 public:
-  BC() {}
-  BC(BC &&);
+  BC() { }
+  BC(BC &&) { }
   ~BC();
 
   static void class_template(nawh::object_wrap_helper<BC> *wrap) {
@@ -49,7 +54,7 @@ public:
 };
 BC::~BC() { }
 
-class C {};
+class C { };
 
 NAN_MODULE_INIT(Init) {
   nawh::object_wrap_helper<A>::export_wrap("A", target);

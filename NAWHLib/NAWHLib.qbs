@@ -7,7 +7,7 @@ StaticLibrary {
     property bool exceptionsToJs: true
 
     Depends { name: 'cpp' }
-    cpp.cxxLanguageVersion: 'c++14'
+    cpp.cxxLanguageVersion: 'c++17'
     cpp.commonCompilerFlags: [ '-pedantic' ]
     cpp.includePaths: [ 'include/' ]
     cpp.defines: {
