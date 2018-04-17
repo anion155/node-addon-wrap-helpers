@@ -209,6 +209,21 @@ template <typename _Functor>
     Nan::SetPrototypeMethod(*tpl, name.c_str(), nawh::lambda_traits<_Functor>::wrap_lambda_to_nan(lambda));
     return this;
   }
+
+template <typename _Type, _Type _member>
+  object_wrap_helper *property_rw(const std::string &name) {
+    return this;
+  }
+template <typename _Type, _Type _member>
+  object_wrap_helper *property_ro(const std::string &name) {
+    return this;
+  }
+template <typename _Type, _Type _member>
+  object_wrap_helper *property_wo(const std::string &name) {
+    return this;
+  }
+template <typename _Type, _Type _member>
+  object_wrap_helper *property(const std::string &name) { return property_rw<_Type, _member>(name); }
 };
 template <class _Wrapper>
 object_wrap_helper<_Wrapper, true> object_wrap_helper<_Wrapper, true>::instance;
