@@ -5,10 +5,15 @@
 
 namespace nawh {
 
+template <template <typename ...> class _Templ, typename _Spec>
+struct is_specialization_of : std::false_type { };
+template <template <typename ...> class _Templ, typename ..._Args>
+struct is_specialization_of<_Templ, _Templ<_Args...>> : std::true_type { };
+
 template <class, bool> struct object_wrap_helper;
 namespace __hidden__ {
   struct do_has_class_template {
-  template <class _Wrapper, typename = decltype(_Wrapper::class_template(nawh::object_wrap_helper<_Wrapper, true>::_wrap))>
+  template <class _Wrapper, typename = decltype(_Wrapper::class_template(static_cast<nawh::object_wrap_helper<_Wrapper, true> *>(nullptr)))>
     static std::true_type __test(int);
   template <typename>
     static std::false_type __test(...);

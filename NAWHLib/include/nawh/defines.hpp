@@ -1,0 +1,7 @@
+#pragma once
+
+#ifdef NAWH_OPTION_ARRAY_EXACT_SIZE
+#  define NAWH_ARRAY_INCOMPATIBLE_SIZE_OP !=
+#else
+#  define NAWH_ARRAY_INCOMPATIBLE_SIZE_OP <
+#endif

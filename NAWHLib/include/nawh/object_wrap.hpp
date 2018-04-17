@@ -41,8 +41,15 @@ template <class _Wrapper> struct object_wrap_helper<_Wrapper, false>;
 template <class _Wrapper>
 struct object_wrap_helper<_Wrapper, true> {
 private:
+  object_wrap_helper() {
+    // FIXME: add to every class
+//    if (std::is_default_constructible<_Wrapper>::value) {
+//      constructor();
+//    }
+  }
   static object_wrap_helper instance;
-  template <typename ...> friend struct __hidden__::extends_helper;
+template <typename ...>
+  friend struct __hidden__::extends_helper;
   object_wrap_helper(object_wrap_helper &) =delete;
   object_wrap_helper(object_wrap_helper &&) =delete;
   void operator =(object_wrap_helper &) =delete;
@@ -107,22 +114,28 @@ template <typename ..._Bases>
       throw nawh::error_syntax("You can not export a class more than once");
     }
     auto tpl = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct);
+    tpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tpl->SetClassName(Nan::New(name).ToLocalChecked());
+    __hidden__::extends_helper<_Bases...>::inherit(tpl);
     instance.tpl = &tpl;
-      tpl->InstanceTemplate()->SetInternalFieldCount(1);
-      tpl->SetClassName(Nan::New(name).ToLocalChecked());
-
-      __hidden__::extends_helper<_Bases...>::inherit(tpl);
       class_template_init(&instance);
-      instance.class_template.Reset(tpl);
-      target->Set(Nan::New(name).ToLocalChecked(), tpl->GetFunction());
     instance.tpl = nullptr;
+    instance.class_template.Reset(tpl);
+    target->Set(Nan::New(name).ToLocalChecked(), tpl->GetFunction());
 
-    if (std::is_move_constructible<_Wrapper>::value || std::is_copy_constructible<_Wrapper>::value) {
-      auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
-      tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
-      tpl_dummy->Inherit(tpl);
-      instance.class_template_dummy.Reset(tpl_dummy);
-    }
+    auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
+    tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
+    tpl_dummy->Inherit(tpl);
+    instance.class_template_dummy.Reset(tpl_dummy);
+  }
+template <typename ..._Bases>
+  static typename std::enable_if<
+    nawh::has_class_template<_Wrapper>::value, void
+  >::type export_wrap(
+      const std::string &name
+      , Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
+  {
+    export_wrap(name, target, &_Wrapper::class_template);
   }
 
 template <typename ..._Bases>
@@ -137,15 +150,15 @@ template <typename ..._Bases>
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
     tpl->SetClassName(Nan::New(name).ToLocalChecked());
     __hidden__::extends_helper<_Bases...>::inherit(tpl);
-    class_template_init(&instance);
+    instance.tpl = &tpl;
+      class_template_init(&instance);
+    instance.tpl = nullptr;
     instance.class_template.Reset(tpl);
 
-    if (std::is_nothrow_move_constructible<_Wrapper>::value || std::is_nothrow_copy_constructible<_Wrapper>::value) {
-      auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
-      tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
-      tpl_dummy->Inherit(tpl);
-      instance.class_template_dummy.Reset(tpl_dummy);
-    }
+    auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
+    tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
+    tpl_dummy->Inherit(tpl);
+    instance.class_template_dummy.Reset(tpl_dummy);
   }
 
 protected:
@@ -154,19 +167,12 @@ protected:
   Nan::Persistent<v8::FunctionTemplate> class_template;
   Nan::Persistent<v8::FunctionTemplate> class_template_dummy;
 
-private:
-  object_wrap_helper() {
-    if (std::is_default_constructible<_Wrapper>::value) {
-      constructor();
-    }
-  }
-
 public:
-  template <typename ..._Args>
+template <typename ..._Args>
   object_wrap_helper *constructor() {
     static_assert(std::is_constructible<_Wrapper, _Args...>::value, "Can't construct class with provided arguments");
     size_t size = sizeof... (_Args);
-    auto ctor = nawh::constructor_traits<_Wrapper(_Args...)>::caller::construct;
+    auto ctor = nawh::constructor_traits<_Wrapper(_Args...)>::invoker::construct;
     constrs.emplace(size, ctor);
     return this;
   }
