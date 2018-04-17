@@ -20,8 +20,9 @@ namespace __hidden__ {
 template <typename _Type>
   struct is_cstring_type
       : std::integral_constant<bool,
-      std::is_same<typename std::decay<_Type>::type, char *>::value
-      || std::is_same<typename std::decay<_Type>::type, wchar_t *>::value> { };
+      std::is_same<typename std::decay<typename std::remove_pointer<_Type>::type>::type *, char *>::value
+      || std::is_same<typename std::decay<typename std::remove_pointer<_Type>::type>::type *, wchar_t *>::value> { };
+
 template <typename _Type>
   struct is_string_object_type
       : std::integral_constant<bool,
@@ -83,17 +84,18 @@ template <typename _Type>
     static v8::Local<v8::Value> to_value(const _Type &value) { Nan::EscapableHandleScope scope; return scope.Escape(Nan::New(value)); }
   };
 
-template <typename _Type, std::size_t _size>
+template <typename _Type>
   struct converter_cstring : converter_base<_Type *> {
     static bool is_type(const v8::Local<v8::Value> &value) { return value->IsString() || value->IsStringObject(); }
+    [[deprecated("Pass ownership of created object to caller. Has to freed manualy. Use std::string instead")]]
     static _Type *to_type(const v8::Local<v8::Value> &value) {
       converter_cstring::check(value);
       Nan::Utf8String utf8(value);
-      _Type buf[_size];
+      _Type *buf = new _Type[strlen(*utf8)];
       strcpy(buf, *utf8);
       return buf;
     }
-    static v8::Local<v8::Value> to_value(_Type *value) { Nan::EscapableHandleScope scope; return scope.Escape(Nan::New(value).ToLocalChecked()); }
+    static v8::Local<v8::Value> to_value(const _Type *value) { Nan::EscapableHandleScope scope; return scope.Escape(Nan::New(value).ToLocalChecked()); }
   };
 
 template <typename _Type>
@@ -155,12 +157,9 @@ template <typename _Type, std::size_t _size>
     static _Type *to_type(const v8::Local<v8::Value> &value) {
       converter_raw_array::check(value);
       auto array = value.As<v8::Array>();
-#ifdef NAWH_OPTION_ARRAY_EXACT_SIZE
-      if (array->Length() != _size)
-#else
-      if (array->Length() < _size)
-#endif
-        { throw nawh::error_argument_array(_size); }
+      if (array->Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP _size) {
+        throw nawh::error_argument_array(_size);
+      }
       _Type *buf = new _Type[_size];
       for (size_t i = 0; i < _size; ++i) {
         buf[i] = nawh::converter<_Type, void>::to_type(array->Get(i));
@@ -183,12 +182,9 @@ template <typename _Type, std::size_t _size>
     static std::array<_Type, _size> &&to_type(const v8::Local<v8::Value> &value) {
       converter_array::check(value);
       auto array = value.As<v8::Array>();
-#ifdef NAWH_OPTION_ARRAY_EXACT_SIZE
-      if (array->Length() != _size)
-#else
-      if (array->Length() < _size)
-#endif
-        { throw nawh::error_argument_array(_size); }
+      if (array->Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP _size) {
+        throw nawh::error_argument_array(_size);
+      }
       std::array<_Type, _size> buf;
       for (size_t i = 0; i < _size; ++i) {
         buf[i] = nawh::converter<_Type, void>::to_type(array->Get(i));
@@ -245,9 +241,9 @@ template <typename _Type>
 struct converter<_Type, typename std::enable_if<std::is_floating_point<std::remove_reference_t<_Type>>::value>::type>
     : __hidden__::converter_real<std::remove_cv_t<_Type>>
 { };
-template <typename _Type, std::size_t _size>
-struct converter<_Type[_size], typename std::enable_if<__hidden__::is_cstring_type<_Type *>::value>::type>
-    : __hidden__::converter_cstring<std::remove_cv_t<_Type>, _size>
+template <typename _Type>
+struct converter<_Type *, typename std::enable_if<__hidden__::is_cstring_type<_Type *>::value>::type>
+    : __hidden__::converter_cstring<std::remove_cv_t<_Type>>
 { };
 template <typename _Type>
 struct converter<_Type, typename std::enable_if<__hidden__::is_string_object_type<_Type>::value>::type>
