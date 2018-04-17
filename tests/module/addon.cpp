@@ -30,6 +30,8 @@ public:
         ->method<decltype(&A::hello2), &A::hello2>("hello2")
         ->method<decltype(&world), &world>("world")
         ->method<decltype(&world2), &world2>("world2")
+        ->method_lambda([]() { return "lambda"; }, "lambda")
+        ->method_lambda([]() { return "lambda2"; }, "lambda2")
         ;
   }
 };

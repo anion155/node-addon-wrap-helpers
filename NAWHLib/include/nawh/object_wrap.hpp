@@ -14,6 +14,7 @@
 #include <nawh/constructor_traits.hpp>
 #include <nawh/method_traits.hpp>
 #include <nawh/function_traits.hpp>
+#include <nawh/lambda_traits.hpp>
 
 namespace nawh {
 
@@ -193,6 +194,11 @@ template <typename _Type, _Type _function>
   >::type method(const std::string &name) {
     auto cb = &nawh::function_traits<_Type>::invoker::template function_wrapped<_function>;
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
+    return this;
+  }
+template <typename _Functor>
+  object_wrap_helper *method_lambda(_Functor lambda, const std::string &name) {
+    Nan::SetPrototypeMethod(*tpl, name.c_str(), nawh::lambda_traits<_Functor>::wrap_lambda_to_nan(lambda));
     return this;
   }
 };
