@@ -13,6 +13,7 @@
 #include <nawh/type_traits.hpp>
 #include <nawh/constructor_traits.hpp>
 #include <nawh/method_traits.hpp>
+#include <nawh/function_traits.hpp>
 
 namespace nawh {
 
@@ -183,6 +184,14 @@ template <typename _Type, _Type _method>
       std::is_same<typename nawh::method_traits<_Type>::class_type, _Wrapper>::value, object_wrap_helper *
   >::type method(const std::string &name) {
     auto cb = &nawh::method_traits<_Type>::invoker::template method_wrapped<_method>;
+    Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
+    return this;
+  }
+template <typename _Type, _Type _function>
+  typename std::enable_if<
+      std::is_function<typename std::remove_pointer<_Type>::type>::value, object_wrap_helper *
+  >::type method(const std::string &name) {
+    auto cb = &nawh::function_traits<_Type>::invoker::template function_wrapped<_function>;
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }

@@ -3,6 +3,9 @@
 
 enum B { };
 
+static std::string world() { return "world"; }
+static std::string world2() { return "world2"; }
+
 class A : public nawh::object_wrap {
 public:
   A() { }
@@ -25,6 +28,8 @@ public:
         ->constructor<double, int>()
         ->method<decltype(&A::hello), &A::hello>("hello")
         ->method<decltype(&A::hello2), &A::hello2>("hello2")
+        ->method<decltype(&world), &world>("world")
+        ->method<decltype(&world2), &world2>("world2")
         ;
   }
 };
