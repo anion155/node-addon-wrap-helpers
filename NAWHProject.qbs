@@ -5,6 +5,6 @@ Project {
     qbsSearchPaths: [ nodeQbsSearchPath ]
     references: [
         'NAWHLib/NAWHLib.qbs',
-        'tests/NAWHTests.qbs',
+        'test/NAWHTests.qbs',
     ]
 }

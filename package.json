@@ -3,11 +3,8 @@
   "version": "0.1.0",
   "description": "Node native addon POC wrap",
   "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
-    "test": "node tests/js/objects.js"
+    "test": "nqbs build && mocha"
   },
   "repository": {
     "type": "git",
@@ -25,5 +22,8 @@
   "dependencies": {
     "nan": "^2.10.0",
     "node-qbs": "^0.1.1"
+  },
+  "devDependencies": {
+    "mocha": "^5.1.0"
   }
 }
