@@ -24,6 +24,6 @@
   "license": "MIT",
   "dependencies": {
     "nan": "^2.10.0",
-    "node-qbs": "0.0.7"
+    "node-qbs": "^0.1.1"
   }
 }

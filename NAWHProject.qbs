@@ -1,10 +1,8 @@
 import qbs
 
 Project {
-    qbsSearchPaths: [
-        'node_modules/node-qbs/qbs/',
-    ]
-
+    property string nodeQbsSearchPath: 'node_modules/node-qbs/qbs'
+    qbsSearchPaths: [ nodeQbsSearchPath ]
     references: [
         'NAWHLib/NAWHLib.qbs',
         'tests/NAWHTests.qbs',
