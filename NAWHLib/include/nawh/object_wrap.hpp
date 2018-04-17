@@ -197,7 +197,9 @@ template <typename _Type, _Type _function>
     return this;
   }
 template <typename _Functor>
-  object_wrap_helper *method_lambda(_Functor lambda, const std::string &name) {
+  typename std::enable_if<
+      nawh::is_lambda<_Functor>::value, object_wrap_helper *
+  >::type method_lambda(_Functor lambda, const std::string &name) {
     Nan::SetPrototypeMethod(*tpl, name.c_str(), nawh::lambda_traits<_Functor>::wrap_lambda_to_nan(lambda));
     return this;
   }
