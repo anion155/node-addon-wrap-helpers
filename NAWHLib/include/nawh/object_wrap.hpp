@@ -8,11 +8,11 @@
 
 #include <iostream>
 
-//#include <nawh/method_wrap.hpp>
 #include <nawh/errors.hpp>
 #include <nawh/types.hpp>
 #include <nawh/type_traits.hpp>
 #include <nawh/constructor_traits.hpp>
+#include <nawh/method_traits.hpp>
 
 namespace nawh {
 
@@ -177,9 +177,13 @@ template <typename ..._Args>
     return this;
   }
 
-  template <typename _Type, typename _Cast = _Type>
-  object_wrap_helper *property() {
-
+template <typename _Type, _Type _method>
+  typename std::enable_if<
+      std::is_member_function_pointer<_Type>::value &&
+      std::is_same<typename nawh::method_traits<_Type>::class_type, _Wrapper>::value, object_wrap_helper *
+  >::type method(const std::string &name) {
+    auto cb = &nawh::method_traits<_Type>::invoker::template method_wrapped<_method>;
+    Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }
 };

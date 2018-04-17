@@ -13,6 +13,9 @@ public:
   A(double a, int b);
   ~A();
 
+  std::string hello(int a) { return "hello " + std::to_string(a); }
+  std::string hello2() { return "hello2"; }
+
   static void class_template(nawh::object_wrap_helper<A> *wrap) {
     wrap
         ->constructor()
@@ -20,6 +23,8 @@ public:
         ->constructor<int>()
         ->constructor<std::string>()
         ->constructor<double, int>()
+        ->method<decltype(&A::hello), &A::hello>("hello")
+        ->method<decltype(&A::hello2), &A::hello2>("hello2")
         ;
   }
 };
