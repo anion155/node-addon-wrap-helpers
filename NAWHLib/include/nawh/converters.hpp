@@ -110,11 +110,11 @@ template <typename _Type>
   };
 
 template <typename _Type>
-  struct converter_wrapper : converter_base<_Type *> {
+  struct converter_wrapper_ptr : converter_base<_Type *> {
     static bool is_type(const v8::Local<v8::Value> &value) { return value->IsObject(); }
     static _Type *to_type(const v8::Local<v8::Value> &value) {
-      converter_wrapper::check(value);
-      auto wrap = Nan::ObjectWrap::Unwrap<nawh::object_wrap>(value->ToObject());
+      converter_wrapper_ptr::check(value);
+      auto wrap = Nan::ObjectWrap::Unwrap<Nan::ObjectWrap>(value->ToObject());
       if (!wrap) { throw nawh::error_argument_type("Value is not cpp object"); }
       auto obj = dynamic_cast<_Type *>(wrap);
       if (!obj) { throw nawh::error_argument_type("Object is not wanted type"); }
@@ -122,19 +122,31 @@ template <typename _Type>
     }
     static v8::Local<v8::Value> to_value(_Type *value) {
       Nan::EscapableHandleScope scope;
-      return scope.Escape(object_wrap_helper<_Type, true>::handle(value));
+      return scope.Escape(object_wrap_helper<_Type, void>::handle(value));
+    }
+  };
+
+template <typename _Type>
+  struct converter_wrapper_cref : converter_base<const _Type &> {
+    static bool is_type(const v8::Local<v8::Value> &value) { return value->IsObject(); }
+    static const _Type &to_type(const v8::Local<v8::Value> &value) {
+      return *converter_wrapper_ptr<_Type>::to_type(value);
+    }
+    static v8::Local<v8::Value> to_value(const _Type &value) {
+      Nan::EscapableHandleScope scope;
+      return scope.Escape(converter_wrapper_ptr<_Type>::to_value(&value));
     }
   };
 
 template <typename _SmartPtr, typename _Type>
-  struct converter_wrapper_smart : converter_base<_Type *> {
+  struct converter_wrapper_ptr_smart : converter_base<_Type *> {
     static bool is_type(const v8::Local<v8::Value> &value) { return value->IsObject(); }
     static _SmartPtr to_type(const v8::Local<v8::Value> &value) {
-      return _SmartPtr(converter_wrapper<_Type>::to_type(value));
+      return _SmartPtr(converter_wrapper_ptr<_Type>::to_type(value));
     }
     static v8::Local<v8::Value> to_value(const _SmartPtr &value) {
       Nan::EscapableHandleScope scope;
-      return scope.Escape(converter_wrapper<_Type>::to_value(value.operator ->()));
+      return scope.Escape(converter_wrapper_ptr<_Type>::to_value(value.operator ->()));
     }
   };
 
@@ -251,11 +263,15 @@ struct converter<_Type, typename std::enable_if<__hidden__::is_string_object_typ
 { };
 template <typename _Type>
 struct converter<_Type *, typename std::enable_if<std::is_base_of<nawh::object_wrap, _Type>::value>::type>
-    : __hidden__::converter_wrapper<std::remove_cv_t<_Type>>
+    : __hidden__::converter_wrapper_ptr<std::remove_cv_t<_Type>>
+{ };
+template <typename _Type>
+struct converter<const _Type &, typename std::enable_if<std::is_base_of<nawh::object_wrap, _Type>::value>::type>
+    : __hidden__::converter_wrapper_cref<std::remove_cv_t<_Type>>
 { };
 template <typename _Type>
 struct converter<std::shared_ptr<_Type>, typename std::enable_if<std::is_base_of<nawh::object_wrap, _Type>::value>::type>
-    : __hidden__::converter_wrapper_smart<std::shared_ptr<std::remove_cv_t<_Type>>, std::remove_cv_t<_Type>>
+    : __hidden__::converter_wrapper_ptr_smart<std::shared_ptr<std::remove_cv_t<_Type>>, std::remove_cv_t<_Type>>
 { };
 //template <typename _Rt, typename ..._As>
 //struct converter<std::function<_Rt(_As...)>, typename std::true_type::type>

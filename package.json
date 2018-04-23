@@ -4,7 +4,8 @@
   "description": "Node native addon POC wrap",
   "main": "index.js",
   "scripts": {
-    "test": "nqbs build && mocha"
+    "test": "nqbs build && mocha",
+    "devtest": "nqbs build -d && mocha"
   },
   "repository": {
     "type": "git",

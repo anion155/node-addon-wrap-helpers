@@ -1,24 +1,21 @@
 #pragma once
 
-#include <utility>
-#include <functional>
-#include <sstream>
 #include <nan.h>
-#include <nawh/defines.hpp>
+#include <utility>
+#include <nawh/type_traits.hpp>
 #include <nawh/errors.hpp>
+#include <nawh/defines.hpp>
 #include <nawh/converters.hpp>
 
 namespace nawh {
 
 namespace __hidden__ {
-
-
 template <class _Wrapper, typename _Return, typename _sequence, typename ..._Args>
-  struct method_invoker;
+  struct method_wrapper;
 template<class _Wrapper, typename _Return, std::size_t ..._i, typename ..._Args>
-  struct method_invoker<_Wrapper, _Return, std::integer_sequence<std::size_t, _i...>, _Args...> {
+  struct method_wrapper<_Wrapper, _Return, std::integer_sequence<std::size_t, _i...>, _Args...> {
     template <_Return(_Wrapper::*_method)(_Args...)>
-    static NAN_METHOD(method_wrapped) NAWH_TRY {
+    static NAN_METHOD(wrapped) NAWH_TRY {
       if (info.Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP sizeof...(_Args)) {
         throw nawh::error_argument_array(sizeof...(_Args));
       }
@@ -54,6 +51,6 @@ template <std::size_t _n>
   using function_ref = _Return(_Wrapper::*)(_Args...);
   using functor_type = std::function<function_type>;
 
-  using invoker = __hidden__::method_invoker<_Wrapper, _Return, std::index_sequence_for<_Args...>, _Args...>;
+  using wrapper = __hidden__::method_wrapper<_Wrapper, _Return, std::index_sequence_for<_Args...>, _Args...>;
 };
 }

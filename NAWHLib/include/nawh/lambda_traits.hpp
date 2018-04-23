@@ -1,5 +1,10 @@
 #pragma once
 
+#include <nan.h>
+#include <nawh/type_traits.hpp>
+#include <nawh/defines.hpp>
+#include <nawh/errors.hpp>
+#include <nawh/converters.hpp>
 #include <nawh/function_traits.hpp>
 
 namespace nawh {
@@ -15,7 +20,7 @@ template <typename _Functor, typename _Return, std::size_t ..._i, typename ..._A
     using function_type = _Return(_Args...);
     using function_ref = function_type *;
 
-    static inline function_ref wrap_to_callback(_Functor lambda) {
+    static inline function_ref wrap_lambda_to_callback(_Functor lambda) {
         static _Functor _lambda = lambda;
         return [](_Args ...args) { return _lambda(std::forward<_Args>(args)...); };
     }

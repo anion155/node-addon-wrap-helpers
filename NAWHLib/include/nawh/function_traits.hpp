@@ -9,11 +9,11 @@ namespace nawh {
 
 namespace __hidden__ {
 template <typename _Return, typename _sequence, typename ..._Args>
-  struct function_invoker;
+  struct function_wrapper;
 template<typename _Return, std::size_t ..._i, typename ..._Args>
-  struct function_invoker<_Return, std::integer_sequence<std::size_t, _i...>, _Args...> {
+  struct function_wrapper<_Return, std::integer_sequence<std::size_t, _i...>, _Args...> {
     template <_Return(*_function)(_Args...)>
-    static NAN_METHOD(function_wrapped) NAWH_TRY {
+    static NAN_METHOD(wrapped) NAWH_TRY {
       if (info.Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP sizeof...(_Args)) {
         throw nawh::error_argument_array(sizeof...(_Args));
       }
@@ -41,7 +41,7 @@ template <std::size_t _n>
   using function_ref = function_type *;
   using functor_type = std::function<function_type>;
 
-  using invoker = __hidden__::function_invoker<_Return, std::index_sequence_for<_Args...>, _Args...>;
+  using wrapper = __hidden__::function_wrapper<_Return, std::index_sequence_for<_Args...>, _Args...>;
 };
 template <typename _Return, typename ..._Args>
 struct function_traits<_Return(*)(_Args...)> : public function_traits<_Return(_Args...)> { };
