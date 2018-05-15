@@ -1,67 +1,117 @@
 #pragma once
 
 #include <nan.h>
-#include <string>
-#include <memory>
 #include <functional>
+#include <string>
 #include <unordered_map>
 
-#include <iostream>
-
 #include <nawh/errors.hpp>
-#include <nawh/types.hpp>
 #include <nawh/type_traits.hpp>
+#include <nawh/utilities.hpp>
+
 #include <nawh/constructor_traits.hpp>
-#include <nawh/method_traits.hpp>
-#include <nawh/function_traits.hpp>
-#include <nawh/lambda_traits.hpp>
+#include <nawh/callbacks_traits.hpp>
+#include <nawh/accessors.hpp>
 
 namespace nawh {
 
-template <class, bool> struct object_wrap_helper;
+template <class, typename> struct object_wrap_helper;
 class object_wrap : public Nan::ObjectWrap {
-  template <class, bool> friend struct object_wrap_helper;
+  template <class, typename> friend struct object_wrap_helper;
 };
 
+template <class, typename> struct object_wrap_helper;
 namespace __hidden__ {
-template <typename ..._Bases>
+template <typename _Base = void>
   struct extends_helper {
-    static void __inherit(const v8::Local<v8::FunctionTemplate> &tpl, std::initializer_list<v8::Local<v8::FunctionTemplate>> parents) {
-      for (auto &parent : parents) {
-        tpl->Inherit(parent);
-      }
-    }
-
     static void inherit(const v8::Local<v8::FunctionTemplate> &tpl) {
-      __inherit(tpl, { Nan::New<v8::FunctionTemplate>(object_wrap_helper<_Bases, true>::instance.class_template)... });
+      tpl->Inherit(Nan::New<v8::FunctionTemplate>(object_wrap_helper<_Base, void>::instance()->class_template));
+    }
+  };
+template <>
+  struct extends_helper<void> {
+    static void inherit(const v8::Local<v8::FunctionTemplate> &tpl) {
+      nawh::UNUSED(tpl);
     }
   };
 }
 
-template <class _Wrapper, bool = true/*std::is_base_of<nawh::object_wrap, _Wrapper>::value*/> struct object_wrap_helper;
-template <class _Wrapper> struct object_wrap_helper<_Wrapper, false>;
+template <class _Wrapper, typename = void> struct object_wrap_helper;
 template <class _Wrapper>
-struct object_wrap_helper<_Wrapper, true> {
+struct object_wrap_helper<_Wrapper, typename std::enable_if<std::is_base_of<nawh::object_wrap, _Wrapper>::value>::type> {
 private:
-  object_wrap_helper() {
-    // FIXME: add to every class
-//    if (std::is_default_constructible<_Wrapper>::value) {
-//      constructor();
-//    }
+  static object_wrap_helper *instance() {
+    static object_wrap_helper *inst = new object_wrap_helper();
+    return inst;
   }
-  static object_wrap_helper instance;
-template <typename ...>
-  friend struct __hidden__::extends_helper;
+
   object_wrap_helper(object_wrap_helper &) =delete;
   object_wrap_helper(object_wrap_helper &&) =delete;
   void operator =(object_wrap_helper &) =delete;
   void operator =(object_wrap_helper &&) =delete;
 
+  template <typename> friend struct __hidden__::extends_helper;
+  Nan::Persistent<v8::FunctionTemplate> class_template;
+
+public:
+  using class_template_init_cb = std::function<void(object_wrap_helper *wrap)>;
+template <typename ..._Bases>
+  static void export_wrap(
+      const std::string &name
+      , Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target
+      , const class_template_init_cb &class_template_init)
+  {
+    if (!instance()->class_template.IsEmpty()) {
+      throw nawh::error_syntax("You can not export a class more than once");
+    }
+
+    auto tpl = Nan::New<v8::FunctionTemplate>(&construct);
+    tpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tpl->SetClassName(Nan::New(name).ToLocalChecked());
+    __hidden__::extends_helper<_Bases...>::inherit(tpl);
+
+    instance()->tpl = &tpl;
+    class_template_init(instance());
+    instance()->tpl = nullptr;
+
+    instance()->class_template.Reset(tpl);
+    if (!target.IsEmpty()) {
+      target->Set(Nan::New(name).ToLocalChecked(), tpl->GetFunction());
+    }
+  }
+template <typename ..._Bases>
+  static typename std::enable_if<
+    nawh::has_class_template<_Wrapper>::value
+  >::type export_wrap(const std::string &name, Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target) {
+    export_wrap<_Bases...>(name, target, &_Wrapper::class_template);
+  }
+template <typename ..._Bases>
+  static void export_wrap_non_instantiated(const std::string &name, const class_template_init_cb &class_template_init) {
+    export_wrap<_Bases...>(name, Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE(), class_template_init);
+  }
+template <typename ..._Bases>
+  static void export_wrap_non_instantiated(const std::string &name) {
+    export_wrap<_Bases...>(name, Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE(), &_Wrapper::class_template);
+  }
+
+public:
+  static v8::Local<v8::Object> handle(_Wrapper *wrap) {
+    Nan::EscapableHandleScope scope;
+    if (!wrap->persistent().IsEmpty()) {
+      return scope.Escape(wrap->handle());
+    }
+    v8::Local<v8::FunctionTemplate> tpl = Nan::New(instance()->class_template);
+    v8::Local<v8::Object> handle = Nan::NewInstance(tpl->InstanceTemplate()).ToLocalChecked();
+    wrap->Wrap(handle);
+    return scope.Escape(handle);
+  }
+
+private:
   static NAN_METHOD(construct) NAWH_TRY {
     if (!info.IsConstructCall()) {
       throw nawh::error_syntax("Must be used only as constructor.");
     }
-    if (instance.constrs.size() < 1) {
+    if (instance()->constrs.size() < 1) {
       throw nawh::error_syntax("No constructors was registred for this type.");
     }
     object_wrap *obj = nullptr;
@@ -70,148 +120,112 @@ template <typename ...>
 #else
     for (int size = info.Length(); size >= 0; --size) {
 #endif
-      auto range = instance.constrs.equal_range(static_cast<size_t>(size));
+      auto range = instance()->constrs.equal_range(static_cast<size_t>(size));
       for (auto it = range.first; it != range.second; ++it) {
         try {
           obj = it->second(info);
           break;
-        } catch (const error_argument_type &) { }
+        } catch (const error_argument_type &) {
+          continue;
+        }
       }
     }
     if (obj == nullptr) {
-      std::cout << "error_argument_array\n";
       throw nawh::error_argument_array();
     }
     obj->Wrap(info.This());
     info.GetReturnValue().Set(info.This());
   } NAWH_CATCH
 
-  static NAN_METHOD(construct_dummy) NAWH_TRY {
-    object_wrap *obj = new object_wrap();
-    obj->Wrap(info.This());
-    info.GetReturnValue().Set(info.This());
-  } NAWH_CATCH
-
-public:
-  static v8::Local<v8::Object> handle(_Wrapper *wrap) {
-    Nan::EscapableHandleScope scope;
-    if (!wrap->persistent().IsEmpty()) {
-      return scope.Escape(wrap->handle());
-    }
-    v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(instance.class_template_dummy);
-    auto handle = Nan::NewInstance(tpl->GetFunction()).ToLocalChecked();
-    Nan::ObjectWrap::Unwrap<object_wrap>(handle)->persistent().Reset();
-    Nan::SetInternalFieldPointer(handle, 0, wrap);
-    return scope.Escape(handle);
-  }
-
-  using class_template_init_cb = std::function<void(object_wrap_helper *wrap)>;
-template <typename ..._Bases>
-  static void export_wrap(
-      const std::string &name
-      , Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target
-      , const class_template_init_cb &class_template_init)
-  {
-    if (!instance.class_template.IsEmpty()) {
-      throw nawh::error_syntax("You can not export a class more than once");
-    }
-    auto tpl = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct);
-    tpl->InstanceTemplate()->SetInternalFieldCount(1);
-    tpl->SetClassName(Nan::New(name).ToLocalChecked());
-    __hidden__::extends_helper<_Bases...>::inherit(tpl);
-    instance.tpl = &tpl;
-      class_template_init(&instance);
-    instance.tpl = nullptr;
-    instance.class_template.Reset(tpl);
-    target->Set(Nan::New(name).ToLocalChecked(), tpl->GetFunction());
-
-    auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
-    tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
-    tpl_dummy->Inherit(tpl);
-    instance.class_template_dummy.Reset(tpl_dummy);
-  }
-template <typename ..._Bases>
-  static typename std::enable_if<
-    nawh::has_class_template<_Wrapper>::value, void
-  >::type export_wrap(
-      const std::string &name
-      , Nan::ADDON_REGISTER_FUNCTION_ARGS_TYPE target)
-  {
-    export_wrap(name, target, &_Wrapper::class_template);
-  }
-
-template <typename ..._Bases>
-  static void export_wrap_non_instantiated(
-      const std::string &name
-      , const class_template_init_cb &class_template_init)
-  {
-    if (!instance.class_template.IsEmpty()) {
-      throw nawh::error_syntax("You can not export a class more than once");
-    }
-    auto tpl = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
-    tpl->InstanceTemplate()->SetInternalFieldCount(1);
-    tpl->SetClassName(Nan::New(name).ToLocalChecked());
-    __hidden__::extends_helper<_Bases...>::inherit(tpl);
-    instance.tpl = &tpl;
-      class_template_init(&instance);
-    instance.tpl = nullptr;
-    instance.class_template.Reset(tpl);
-
-    auto tpl_dummy = Nan::New<v8::FunctionTemplate>(&object_wrap_helper::construct_dummy);
-    tpl_dummy->InstanceTemplate()->SetInternalFieldCount(1);
-    tpl_dummy->Inherit(tpl);
-    instance.class_template_dummy.Reset(tpl_dummy);
-  }
-
-protected:
+private:
   v8::Local<v8::FunctionTemplate> *tpl = nullptr;
-  std::unordered_multimap<size_t, NAWH_OBJECT_WRAP_CONSTRUCTOR_TYPE<_Wrapper> *> constrs;
-  Nan::Persistent<v8::FunctionTemplate> class_template;
-  Nan::Persistent<v8::FunctionTemplate> class_template_dummy;
 
+private:
+  std::unordered_multimap<size_t, _Wrapper *(*)(Nan::NAN_METHOD_ARGS_TYPE info)> constrs;
 public:
 template <typename ..._Args>
-  object_wrap_helper *constructor() {
-    static_assert(std::is_constructible<_Wrapper, _Args...>::value, "Can't construct class with provided arguments");
+  typename std::enable_if<
+    std::is_constructible<_Wrapper, _Args...>::value &&
+    nawh::__and_<nawh::has_converter<_Args>...>::value
+    , object_wrap_helper *
+  >::type constructor() {
     size_t size = sizeof... (_Args);
-    auto ctor = nawh::constructor_traits<_Wrapper(_Args...)>::invoker::construct;
+    auto ctor = nawh::constructor_traits<_Wrapper(_Args...)>::wrapper::wrapped;
     constrs.emplace(size, ctor);
     return this;
   }
-
-template <typename _Type, _Type _method>
-  typename std::enable_if<
-      std::is_member_function_pointer<_Type>::value &&
-      std::is_same<typename nawh::method_traits<_Type>::class_type, _Wrapper>::value, object_wrap_helper *
-  >::type method(const std::string &name) {
-    auto cb = &nawh::method_traits<_Type>::invoker::template method_wrapped<_method>;
-    Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
-    return this;
+private:
+  object_wrap_helper() {
+//   if (std::is_default_constructible<_Wrapper>::value) {
+//     constructor();
+//   }
+//    if (std::is_copy_constructible<_Wrapper>::value) {
+//      constructor<const _Wrapper &>();
+//    }
   }
-template <typename _Type, _Type _function>
-  typename std::enable_if<
-      std::is_function<typename std::remove_pointer<_Type>::type>::value, object_wrap_helper *
-  >::type method(const std::string &name) {
-    auto cb = &nawh::function_traits<_Type>::invoker::template function_wrapped<_function>;
+
+public:
+template <typename _Type, _Type _callback>
+  object_wrap_helper *method(const std::string &name) {
+    static_assert (nawh::is_function_or_method_of<_Wrapper, _Type>::value, "Callback must point to function "
+                                                                           "or static method "
+                                                                           "or method of the current wrapper");
+    auto cb = &nawh::callback_traits<_Type>::wrapper::template wrapped<_callback>;
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }
 #ifdef __cpp_template_auto
-template <auto _method>
+template <auto _callback>
   object_wrap_helper *method(const std::string &name) {
-    return method<decltype (_method), _method>(name);
+    return method<decltype (_callback), _callback>(name);
   }
 #endif
 template <typename _Functor>
-  typename std::enable_if<
-      nawh::is_lambda<_Functor>::value, object_wrap_helper *
-  >::type method_lambda(_Functor lambda, const std::string &name) {
+  object_wrap_helper *method(_Functor lambda, const std::string &name) {
+    static_assert (nawh::is_lambda<_Functor>::value, "Seems like argument is not lambda");
     Nan::SetPrototypeMethod(*tpl, name.c_str(), nawh::lambda_traits<_Functor>::wrap_lambda_to_nan(lambda));
     return this;
   }
+
+template <
+      typename _GetterType, _GetterType _getter,
+      typename _SetterType, _SetterType _setter,
+      typename _ConvertType = void>
+  object_wrap_helper * accessor(const std::string &name) {
+    static_assert (nawh::__hidden__::is_accessor_getter_type<_GetterType>::value, "Getter is not suitable");
+    static_assert (nawh::__hidden__::is_accessor_setter_type<_SetterType>::value, "Setter is not suitable");
+    static_assert (nawh::is_accessor_types<_GetterType, _SetterType>::value, "Getter and Setter is not compatible");
+    using DefaultType = typename accessor_type<_GetterType, _SetterType>::type;
+    using ConvertType = typename nawh::if_else_type<!std::is_same<_ConvertType, void>::value, _ConvertType, DefaultType>::type;
+    Nan::SetAccessor(
+          (*tpl)->InstanceTemplate(), Nan::New(name).ToLocalChecked(),
+          &nawh::accessor_getter<_GetterType, _getter, ConvertType>::getter,
+          &nawh::accessor_setter<_SetterType, _setter, ConvertType>::setter
+          );
+    return this;
+  }
+#ifdef __cpp_template_auto
+template <
+      auto _getter, auto _setter,
+      typename _ConvertType = void>
+  object_wrap_helper *accessor(const std::string &name) {
+    return accessor<decltype (_getter), _getter, decltype (_setter), _setter, _ConvertType>(name);
+  }
+#endif
+
+template <
+      typename _MemberType, _MemberType _member,
+      typename _ConvertType = void>
+  object_wrap_helper * accessor(const std::string &name) {
+    return accessor<_MemberType, _member, _MemberType, _member, _ConvertType>(name);
+  }
+#ifdef __cpp_template_auto
+template <auto _member, typename _ConvertType = typename accessor_type<decltype (_member), decltype (_member)>::type>
+  object_wrap_helper *accessor(const std::string &name) {
+    return accessor<decltype (_member), _member, decltype (_member), _member, _ConvertType>(name);
+  }
+#endif
 };
-template <class _Wrapper>
-object_wrap_helper<_Wrapper, true> object_wrap_helper<_Wrapper, true>::instance;
 
 template <class _Wrapper>
 v8::Local<v8::Object> handle(_Wrapper *src) {
