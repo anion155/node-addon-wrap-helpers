@@ -144,24 +144,32 @@ private:
   std::unordered_multimap<size_t, _Wrapper *(*)(Nan::NAN_METHOD_ARGS_TYPE info)> constrs;
 public:
 template <typename ..._Args>
-  typename std::enable_if<
-    std::is_constructible<_Wrapper, _Args...>::value &&
-    nawh::__and_<nawh::has_converter<_Args>...>::value
-    , object_wrap_helper *
-  >::type constructor() {
+  object_wrap_helper *constructor() {
+    static_assert (std::is_constructible<_Wrapper, _Args...>::value, "Wrapper is not constructible with provided arguments");
+    static_assert (nawh::__and_<nawh::has_converter<_Args>...>::value, "Arguments can not be converted from js types");
     size_t size = sizeof... (_Args);
     auto ctor = nawh::constructor_traits<_Wrapper(_Args...)>::wrapper::wrapped;
     constrs.emplace(size, ctor);
     return this;
   }
+  object_wrap_helper *constructor_default() {
+    static_assert (std::is_default_constructible<_Wrapper>::value, "Wrapper is not default constructible");
+    return constructor<>();
+  }
+  object_wrap_helper *constructor_copy() {
+    static_assert (std::is_copy_constructible<_Wrapper>::value, "Wrapper is not copy constructible");
+    return constructor<const _Wrapper &>();
+  }
 private:
   object_wrap_helper() {
-//   if (std::is_default_constructible<_Wrapper>::value) {
-//     constructor();
-//   }
-//    if (std::is_copy_constructible<_Wrapper>::value) {
-//      constructor<const _Wrapper &>();
-//    }
+#ifdef __cpp_if_constexpr
+    if constexpr (std::is_default_constructible<_Wrapper>::value) {
+      constructor_default();
+    }
+    if constexpr (std::is_copy_constructible<_Wrapper>::value) {
+      constructor_copy();
+    }
+#endif
   }
 
 public:

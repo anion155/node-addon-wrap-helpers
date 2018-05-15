@@ -60,8 +60,6 @@ public:
 
   static void class_template(nawh::object_wrap_helper<A> *wrap) {
     wrap
-        ->constructor()
-        ->constructor<const A &>()
         ->constructor<double>()
         ->constructor<int>()
         ->constructor<std::string>()
