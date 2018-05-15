@@ -19,7 +19,7 @@ template<typename _Return, std::size_t ..._i, typename ..._Args>
       }
       if (std::is_same<_Return, void>::value) {
         _function(nawh::converter<_Args>::to_type(info[_i])...);
-        info.GetReturnValue().Set(Nan::Undefined());
+        info.GetReturnValue().SetUndefined();
       } else {
         auto result = _function(nawh::converter<_Args>::to_type(info[_i])...);
         info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
@@ -27,6 +27,8 @@ template<typename _Return, std::size_t ..._i, typename ..._Args>
     } NAWH_CATCH
   };
 }
+
+template <typename _Type> struct is_function : std::is_function<typename std::remove_pointer<_Type>::type> { };
 
 template <typename _Type> struct function_traits;
 template <typename _Return, typename ..._Args>

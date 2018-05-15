@@ -32,7 +32,7 @@ template <typename _Functor, typename _Return, std::size_t ..._i, typename ..._A
         }
         if (std::is_same<_Return, void>::value) {
           _lambda(nawh::converter<_Args>::to_type(info[_i])...);
-          info.GetReturnValue().Set(Nan::Undefined());
+          info.GetReturnValue().SetUndefined();
         } else {
           auto result = _lambda(nawh::converter<_Args>::to_type(info[_i])...);
           info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
@@ -48,7 +48,7 @@ struct lambda_traits<_Return(_Functor::*)(_Args...) const>
   : __hidden__::lambda_traits_impl<_Functor, _Return, std::index_sequence_for<_Args...>, _Args...>
 {
   using lambda_type = _Functor;
-  using function_traits = function_traits<_Return(_Args...)>;
+  using func_traits = function_traits<_Return(_Args...)>;
 
   using return_type = _Return;
   using args_types = std::tuple<_Args...>;

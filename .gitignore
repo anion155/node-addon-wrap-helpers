@@ -186,3 +186,4 @@ CMakeLists.txt.user*
 
 /addon-build/
 /build/
+/compile_commands.json

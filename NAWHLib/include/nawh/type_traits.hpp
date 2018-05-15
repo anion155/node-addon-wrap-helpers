@@ -28,6 +28,16 @@ struct __and_<_B1, _B2, _B3, _Bn...>
     : public std::conditional<_B1::value, __and_<_B2, _B3, _Bn...>, _B1>::type
 { };
 
+template <bool, typename _If, typename _Else> struct if_else_type { };
+template <typename _If, typename _Else>
+struct if_else_type<true, _If, _Else> {
+  using type = _If;
+};
+template <typename _If, typename _Else>
+struct if_else_type<false, _If, _Else> {
+  using type = _Else;
+};
+
 template <class, typename> struct object_wrap_helper;
 namespace __hidden__ {
   struct do_has_class_template {

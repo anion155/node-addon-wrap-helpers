@@ -43,15 +43,15 @@ public:
   A(int a) { prop2 = a; }
   A(double a) { prop4 = a; }
   A(const std::string &a) : prop(a) { }
-  A(double, int) { }
+  A(double a, int b) { prop4 = a; _prop5 = b; }
   ~A();
 
   std::string hello() { return "hello"; }
   std::string hello2(int a) { return "hello2 " + std::to_string(a); }
 
-  std::string _prop5 = "incapsulated_prop";
-  std::string get_prop5() { return _prop5; }
-  void set_prop5(const std::string &a) { _prop5 = a; }
+  int _prop5 = 53;
+  int &get_prop5() { return _prop5; }
+  void set_prop5(const int &a) { _prop5 = a; }
 
   static void class_template(nawh::object_wrap_helper<A> *wrap) {
     wrap
@@ -71,9 +71,10 @@ public:
         ->method<decltype (&A::hello2), &A::hello2>("hello2")
         ->method<decltype (&world2), &world2>("world2")
     #endif
-        ->method_lambda([]() { return "lambda"; }, "lambda")
-        ->method_lambda([](int a) { return "lambda2 " + std::to_string(a); }, "lambda2")
+        ->method([]() { return "lambda"; }, "lambda")
+        ->method([](int a) { return "lambda2 " + std::to_string(a); }, "lambda2")
 
+        ->accessor<decltype (&A::get_prop5), &A::get_prop5, decltype (&A::set_prop5), &A::set_prop5>("prop5")
         ->accessor<decltype (&A::prop), &A::prop>("prop")
         ->accessor<decltype (&A::prop2), &A::prop2, int>("prop2")
     #ifdef __cpp_template_auto
@@ -83,7 +84,6 @@ public:
         ->accessor<decltype (&A::prop3), &A::prop3>("prop3")
         ->accessor<decltype (&A::prop4), &A::prop4, double>("prop4")
     #endif
-        ->accessor<decltype (&A::get_prop5), &A::get_prop5, decltype (&A::set_prop5), &A::set_prop5>("prop3")
         ;
   }
 };

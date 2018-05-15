@@ -1,20 +1,22 @@
 const assert = require('assert');
+let addon = null;
 
 describe('addon', () => {
   describe('require', () => {
-    it('should be { A: class(), blah: new A(), BC: class(), blah2: new BC() }', () => {
-      const addon = require('node-qbs')('NAWHTests');
+    it('should load addon', () => {
+      addon = require('node-qbs')('NAWHTests');
+    });
+    it('addon should be { A: class(), blah: new A(), BC: class(), blah2: new BC() }', () => {
       assert(typeof addon === 'object');
       assert(typeof addon.A === 'function');
       assert(typeof addon.BC === 'function');
       assert(addon.blah instanceof addon.A);
       assert(addon.blah2 instanceof addon.BC);
-      // assert(addon.blah2 instanceof addon.A);
+      assert(addon.blah2 instanceof addon.A);
     });
   });
   describe('constructors', () => {
     it('A should normally construct: (), (int), (double), (string), (double, int)', () => {
-      const addon = require('node-qbs')('NAWHTests');
       assert.doesNotThrow(() => {
         new addon.A();
         new addon.A(1);
@@ -25,7 +27,6 @@ describe('addon', () => {
       });
     });
     it('A should not contruct: (int, string)', () => {
-      const addon = require('node-qbs')('NAWHTests');
       assert.throws(() => {
         new addon.A(1, "vah");
       });
@@ -33,7 +34,6 @@ describe('addon', () => {
   });
   describe('methods', () => {
     it('A should have methods: hello, hello2, world, world2, lambda, lambda2', () => {
-      const addon = require('node-qbs')('NAWHTests');
       let a = new addon.A();
       assert.equal(typeof a.hello, "function");
       assert.equal(typeof a.hello2, "function");
@@ -43,7 +43,6 @@ describe('addon', () => {
       assert.equal(typeof a.lambda2, "function");
     });
     it('A methods results', () => {
-      const addon = require('node-qbs')('NAWHTests');
       let a = new addon.A();
       assert.equal(a.hello(), "hello");
       assert.equal(a.hello2(10), "hello2 10");
@@ -54,8 +53,7 @@ describe('addon', () => {
     });
   });
   describe('properties', () => {
-    it('A should have properties: prop, prop2, prop3, prop4', () => {
-      const addon = require('node-qbs')('NAWHTests');
+    it('A should have properties: prop, prop2, prop3, prop4, prop5', () => {
       let a = new addon.A();
       assert.equal(typeof a.prop, "string");
       assert.equal(typeof a.prop2, "number");
@@ -64,9 +62,9 @@ describe('addon', () => {
       assert.ok(a.prop3 instanceof addon.A);
       assert.equal(typeof a.prop4, "number");
       assert.ok(!Number.isInteger(a.prop4));
+      assert.equal(typeof a.prop5, "number");
     });
     it('A props should be changable', () => {
-      const addon = require('node-qbs')('NAWHTests');
       let a = new addon.A();
 
       assert.equal(a.prop, "default_prop");
@@ -85,10 +83,12 @@ describe('addon', () => {
       assert.equal(a.prop4, 10.5);
       a.prop4 = 8.24;
       assert.equal(a.prop4, 8.24);
+
+      assert.equal(a.prop5, 53);
+      a.prop5 = 28;
+      assert.equal(a.prop5, 28);
     });
     it('A init `prop` in constructor', () => {
-      const addon = require('node-qbs')('NAWHTests');
-
       let a = new addon.A("on_create");
       assert.equal(a.prop, "on_create");
 
@@ -100,6 +100,10 @@ describe('addon', () => {
 
       a = new addon.A(24.5);
       assert.equal(a.prop4, 24.5);
+
+      a = new addon.A(61.48, 47);
+      assert.equal(a.prop4, 61.48);
+      assert.equal(a.prop5, 47);
     });
   });
 });

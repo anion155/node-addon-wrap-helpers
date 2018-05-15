@@ -25,16 +25,39 @@ template<class _Wrapper, typename _Return, std::size_t ..._i, typename ..._Args>
       } catch (const nawh::error_argument_type &error) {
         throw nawh::error_reference("Bad `this` type: " + std::string(error.what()));
       }
-      if (std::is_same<_Return, void>::value) {
-        (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
-        info.GetReturnValue().Set(Nan::Undefined());
-      } else {
-        auto result = (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
-        info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
+      auto result = (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
+      info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
+    } NAWH_CATCH
+  };
+template<class _Wrapper, std::size_t ..._i, typename ..._Args>
+  struct method_wrapper<_Wrapper, void, std::integer_sequence<std::size_t, _i...>, _Args...> {
+    template <void(_Wrapper::*_method)(_Args...)>
+    static NAN_METHOD(wrapped) NAWH_TRY {
+      if (info.Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP sizeof...(_Args)) {
+        throw nawh::error_argument_array(sizeof...(_Args));
       }
+      _Wrapper *holder;
+      try {
+        holder = nawh::converter<_Wrapper *>::to_type(info.Holder());
+      } catch (const nawh::error_argument_type &error) {
+        throw nawh::error_reference("Bad `this` type: " + std::string(error.what()));
+      }
+      (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
+      info.GetReturnValue().SetUndefined();
     } NAWH_CATCH
   };
 }
+
+template <typename _Type> struct is_method : std::false_type { };
+template <typename _Wrapper, typename _Return, typename ..._Args>
+  struct is_method<_Return(_Wrapper::*)(_Args...)> : std::true_type { };
+
+template <typename _Class, typename _Type> struct is_method_of : std::false_type { };
+template <typename _Class, typename _Return, typename ..._Args>
+  struct is_method_of<_Class, _Return(_Class::*)(_Args...)> : std::true_type { };
+
+template <typename _Class, typename _Type>
+  struct is_function_or_method_of : nawh::__or_<nawh::is_function<_Type>, nawh::is_method_of<_Class, _Type>> { };
 
 template <typename _Type> struct method_traits;
 template <class _Wrapper, typename _Return, typename ..._Args>

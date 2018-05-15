@@ -10,10 +10,8 @@
 #include <nawh/utilities.hpp>
 
 #include <nawh/constructor_traits.hpp>
-#include <nawh/callback_traits.hpp>
-#include <nawh/function_traits.hpp>
-#include <nawh/lambda_traits.hpp>
-#include <nawh/member_traits.hpp>
+#include <nawh/callbacks_traits.hpp>
+#include <nawh/accessors.hpp>
 
 namespace nawh {
 
@@ -158,76 +156,73 @@ template <typename ..._Args>
   }
 private:
   object_wrap_helper() {
-//    if (std::is_default_constructible<_Wrapper>::value) {
-//      constructor();
-//    }
+//   if (std::is_default_constructible<_Wrapper>::value) {
+//     constructor();
+//   }
 //    if (std::is_copy_constructible<_Wrapper>::value) {
 //      constructor<const _Wrapper &>();
 //    }
   }
 
 public:
-template <typename _Type, _Type _method>
-  typename std::enable_if<
-    std::is_member_function_pointer<_Type>::value &&
-    std::is_same<typename nawh::method_traits<_Type>::class_type, _Wrapper>::value
-    , object_wrap_helper *
-  >::type method(const std::string &name) {
-    auto cb = &nawh::method_traits<_Type>::wrapper::template wrapped<_method>;
-    Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
-    return this;
-  }
-template <typename _Type, _Type _function>
-  typename std::enable_if<
-    std::is_function<typename std::remove_pointer<_Type>::type>::value
-    , object_wrap_helper *
-  >::type method(const std::string &name) {
-    auto cb = &nawh::function_traits<_Type>::wrapper::template wrapped<_function>;
+template <typename _Type, _Type _callback>
+  object_wrap_helper *method(const std::string &name) {
+    static_assert (nawh::is_function_or_method_of<_Wrapper, _Type>::value, "Callback must point to method of current wrapper or to function");
+    auto cb = &nawh::callback_traits<_Type>::wrapper::template wrapped<_callback>;
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }
 #ifdef __cpp_template_auto
-template <auto _method>
+template <auto _callback>
   object_wrap_helper *method(const std::string &name) {
-    return method<decltype (_method), _method>(name);
+    return method<decltype (_callback), _callback>(name);
   }
 #endif
-
-public:
 template <typename _Functor>
-  typename std::enable_if<
-    nawh::is_lambda<_Functor>::value
-    , object_wrap_helper *
-  >::type method_lambda(_Functor lambda, const std::string &name) {
+  object_wrap_helper *method(_Functor lambda, const std::string &name) {
+    static_assert (nawh::is_lambda<_Functor>::value, "Seems like argument is not lambda");
     Nan::SetPrototypeMethod(*tpl, name.c_str(), nawh::lambda_traits<_Functor>::wrap_lambda_to_nan(lambda));
     return this;
   }
 
-template <typename _Type, _Type _member, typename _PropertyType = typename nawh::member_traits<_Type>::member_type>
-  typename std::enable_if<
-    std::is_member_object_pointer<_Type>::value &&
-    std::is_same<typename nawh::member_traits<_Type>::class_type, _Wrapper>::value
-    , object_wrap_helper *
-  >::type accessor(const std::string &name) {
-    auto getter = nawh::member_traits<_Type>::template wrapper<_PropertyType>::template getter<_member>;
-    auto setter = nawh::member_traits<_Type>::template wrapper<_PropertyType>::template setter<_member>;
-    Nan::SetAccessor((*tpl)->InstanceTemplate(), Nan::New(name).ToLocalChecked(), getter, setter);
+template <
+      typename _GetterType, _GetterType _getter,
+      typename _SetterType, _SetterType _setter,
+      typename _ConvertType = void>
+  object_wrap_helper * accessor(const std::string &name) {
+    static_assert (nawh::__hidden__::is_accessor_getter_type<_GetterType>::value, "Getter is not suitable");
+    static_assert (nawh::__hidden__::is_accessor_setter_type<_SetterType>::value, "Setter is not suitable");
+    static_assert (nawh::is_accessor_types<_GetterType, _SetterType>::value, "Getter and Setter is not compatible");
+    using DefaultType = typename accessor_type<_GetterType, _SetterType>::type;
+    using ConvertType = typename nawh::if_else_type<!std::is_same<_ConvertType, void>::value, _ConvertType, DefaultType>::type;
+    Nan::SetAccessor(
+          (*tpl)->InstanceTemplate(), Nan::New(name).ToLocalChecked(),
+          &nawh::accessor_getter<_GetterType, _getter, ConvertType>::getter,
+          &nawh::accessor_setter<_SetterType, _setter, ConvertType>::setter
+          );
     return this;
   }
 #ifdef __cpp_template_auto
-template <auto _member, typename _PropertyType = typename nawh::member_traits<decltype (_member)>::member_type>
+template <
+      auto _getter, auto _setter,
+      typename _ConvertType = void>
   object_wrap_helper *accessor(const std::string &name) {
-    return accessor<decltype (_member), _member, _PropertyType>(name);
+    return accessor<decltype (_getter), _getter, decltype (_setter), _setter, _ConvertType>(name);
   }
 #endif
 
-template <typename _GetterType, _GetterType _getter, typename _SetterType, _SetterType _setter>
-  object_wrap_helper *accessor(const std::string &name) {
-    auto getter = nawh::callback_traits<_GetterType>::wrapper::template wrapped<_getter>;
-    auto setter = nawh::callback_traits<_SetterType>::wrapper::template wrapped<_setter>;
-    Nan::SetAccessor((*tpl)->InstanceTemplate(), Nan::New(name).ToLocalChecked(), getter, setter);
-    return this;
+template <
+      typename _MemberType, _MemberType _member,
+      typename _ConvertType = void>
+  object_wrap_helper * accessor(const std::string &name) {
+    return accessor<_MemberType, _member, _MemberType, _member, _ConvertType>(name);
   }
+#ifdef __cpp_template_auto
+template <auto _member, typename _ConvertType = typename accessor_type<decltype (_member), decltype (_member)>::type>
+  object_wrap_helper *accessor(const std::string &name) {
+    return accessor<decltype (_member), _member, decltype (_member), _member, _ConvertType>(name);
+  }
+#endif
 };
 
 template <class _Wrapper>
