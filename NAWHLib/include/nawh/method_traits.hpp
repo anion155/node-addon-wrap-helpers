@@ -25,13 +25,13 @@ template<class _Wrapper, typename _Return, std::size_t ..._i, typename ..._Args>
       } catch (const nawh::error_argument_type &error) {
         throw nawh::error_reference("Bad `this` type: " + std::string(error.what()));
       }
-      STATIC_IF((std::is_same<_Return, void>::value)) {
+      if constexpr (std::is_same<_Return, void>::value) {
         (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
         info.GetReturnValue().SetUndefined();
-      } STATIC_ELSE {
+      } else {
         auto result = (holder->*_method)(nawh::converter<_Args>::to_type(info[_i])...);
         info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
-      } STATIC_END_IF
+      }
     } NAWH_CATCH
   };
 }

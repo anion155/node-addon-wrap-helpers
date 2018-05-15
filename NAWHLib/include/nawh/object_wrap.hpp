@@ -8,7 +8,6 @@
 #include <nawh/errors.hpp>
 #include <nawh/type_traits.hpp>
 #include <nawh/utilities.hpp>
-#include <nawh/static_if.hpp>
 
 #include <nawh/constructor_traits.hpp>
 #include <nawh/callbacks_traits.hpp>
@@ -163,17 +162,18 @@ template <typename ..._Args>
   }
 private:
   object_wrap_helper() {
-    STATIC_IF(std::is_default_constructible<_Wrapper>::value) {
-      constructor_default();
-    } STATIC_END_IF
-    STATIC_IF(std::is_copy_constructible<_Wrapper>::value) {
-      constructor_copy();
-    } STATIC_END_IF
+    if constexpr (std::is_default_constructible<_Wrapper>::value) {
+      this->constructor_default();
+    }
+    if constexpr (std::is_copy_constructible<_Wrapper>::value) {
+      this->constructor_copy();
+    }
   }
 
 public:
-template <typename _Type, _Type _callback>
+template <auto _callback>
   object_wrap_helper *method(const std::string &name) {
+    using _Type = decltype (_callback);
     static_assert (nawh::is_function_or_method_of<_Wrapper, _Type>::value, "Callback must point to function "
                                                                            "or static method "
                                                                            "or method of the current wrapper");
@@ -181,12 +181,6 @@ template <typename _Type, _Type _callback>
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;
   }
-#ifdef __cpp_template_auto
-template <auto _callback>
-  object_wrap_helper *method(const std::string &name) {
-    return method<decltype (_callback), _callback>(name);
-  }
-#endif
 template <typename _Functor>
   object_wrap_helper *method(_Functor lambda, const std::string &name) {
     static_assert (nawh::is_lambda<_Functor>::value, "Seems like argument is not lambda");
@@ -194,16 +188,19 @@ template <typename _Functor>
     return this;
   }
 
-template <
-      typename _GetterType, _GetterType _getter,
-      typename _SetterType, _SetterType _setter,
-      typename _ConvertType = void>
+
+  template <auto _getter, auto _setter, typename _ConvertType = void>
   object_wrap_helper * accessor(const std::string &name) {
+    using _GetterType = decltype (_getter);
+    using _SetterType = decltype (_setter);
+
     static_assert (nawh::__hidden__::is_accessor_getter_type<_GetterType>::value, "Getter is not suitable");
     static_assert (nawh::__hidden__::is_accessor_setter_type<_SetterType>::value, "Setter is not suitable");
     static_assert (nawh::is_accessor_types<_GetterType, _SetterType>::value, "Getter and Setter is not compatible");
+
     using DefaultType = typename accessor_type<_GetterType, _SetterType>::type;
     using ConvertType = typename nawh::if_else_type<!std::is_same<_ConvertType, void>::value, _ConvertType, DefaultType>::type;
+
     Nan::SetAccessor(
           (*tpl)->InstanceTemplate(), Nan::New(name).ToLocalChecked(),
           &nawh::accessor_getter<_GetterType, _getter, ConvertType>::getter,
@@ -211,27 +208,11 @@ template <
           );
     return this;
   }
-#ifdef __cpp_template_auto
-template <
-      auto _getter, auto _setter,
-      typename _ConvertType = void>
-  object_wrap_helper *accessor(const std::string &name) {
-    return accessor<decltype (_getter), _getter, decltype (_setter), _setter, _ConvertType>(name);
-  }
-#endif
 
-template <
-      typename _MemberType, _MemberType _member,
-      typename _ConvertType = void>
+template <auto _member, typename _ConvertType = void>
   object_wrap_helper * accessor(const std::string &name) {
-    return accessor<_MemberType, _member, _MemberType, _member, _ConvertType>(name);
+    return accessor<_member, _member, _ConvertType>(name);
   }
-#ifdef __cpp_template_auto
-template <auto _member, typename _ConvertType = typename accessor_type<decltype (_member), decltype (_member)>::type>
-  object_wrap_helper *accessor(const std::string &name) {
-    return accessor<decltype (_member), _member, decltype (_member), _member, _ConvertType>(name);
-  }
-#endif
 };
 
 template <class _Wrapper>

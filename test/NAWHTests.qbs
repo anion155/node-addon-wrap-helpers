@@ -3,7 +3,7 @@ import Node
 
 Node.AddonProduct {
     Depends { name: 'cpp' }
-    cpp.cxxLanguageVersion: 'c++14'
+    cpp.cxxLanguageVersion: 'c++17'
     Depends { name: 'NAWHLib' }
 
     files: [

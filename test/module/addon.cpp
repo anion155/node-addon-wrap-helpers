@@ -65,28 +65,18 @@ public:
         ->constructor<std::string>()
         ->constructor<double, int>()
 
-        ->method<decltype (&A::hello), &A::hello>("hello")
-        ->method<decltype (&world), &world>("world")
-    #ifdef __cpp_template_auto
+        ->method<&A::hello>("hello")
+        ->method<&world>("world")
         ->method<&A::hello2>("hello2")
         ->method<&world2>("world2")
-    #else
-        ->method<decltype (&A::hello2), &A::hello2>("hello2")
-        ->method<decltype (&world2), &world2>("world2")
-    #endif
         ->method([]() { return "lambda"; }, "lambda")
         ->method([](int a) { return "lambda2 " + std::to_string(a); }, "lambda2")
 
-        ->accessor<decltype (&A::get_prop5), &A::get_prop5, decltype (&A::set_prop5), &A::set_prop5>("prop5")
-        ->accessor<decltype (&A::prop), &A::prop>("prop")
-        ->accessor<decltype (&A::prop2), &A::prop2, int>("prop2")
-    #ifdef __cpp_template_auto
+        ->accessor<&A::get_prop5, &A::set_prop5>("prop5")
+        ->accessor<&A::prop>("prop")
+        ->accessor<&A::prop2, int>("prop2")
         ->accessor<&A::prop3>("prop3")
         ->accessor<&A::prop4, double>("prop4")
-    #else
-        ->accessor<decltype (&A::prop3), &A::prop3>("prop3")
-        ->accessor<decltype (&A::prop4), &A::prop4, double>("prop4")
-    #endif
         ;
   }
 };
