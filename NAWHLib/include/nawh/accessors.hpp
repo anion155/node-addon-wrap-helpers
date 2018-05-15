@@ -136,8 +136,8 @@ struct is_accessor_types
     : nawh::__and_<
       __hidden__::is_accessor_getter_type<_GetterType>, __hidden__::is_accessor_setter_type<_SetterType>,
       std::is_same<
-        typename __hidden__::accessor_getter_type<_GetterType>::type,
-        typename __hidden__::accessor_setter_type<_SetterType>::type
+        typename std::decay<typename __hidden__::accessor_getter_type<_GetterType>::type>::type,
+        typename std::decay<typename __hidden__::accessor_setter_type<_SetterType>::type>::type
       >
     >
 { };
@@ -146,7 +146,7 @@ template <typename _GetterType, typename _SetterType>
 struct accessor_type
     : std::enable_if<
       nawh::is_accessor_types<_GetterType, _SetterType>::value
-      , typename __hidden__::accessor_getter_type<_GetterType>::type
+      , typename std::decay<typename __hidden__::accessor_getter_type<_GetterType>::type>::type
     >
 { };
 }

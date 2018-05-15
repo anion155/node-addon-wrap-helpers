@@ -167,7 +167,9 @@ private:
 public:
 template <typename _Type, _Type _callback>
   object_wrap_helper *method(const std::string &name) {
-    static_assert (nawh::is_function_or_method_of<_Wrapper, _Type>::value, "Callback must point to method of current wrapper or to function");
+    static_assert (nawh::is_function_or_method_of<_Wrapper, _Type>::value, "Callback must point to function "
+                                                                           "or static method "
+                                                                           "or method of the current wrapper");
     auto cb = &nawh::callback_traits<_Type>::wrapper::template wrapped<_callback>;
     Nan::SetPrototypeMethod(*tpl, name.c_str(), cb);
     return this;

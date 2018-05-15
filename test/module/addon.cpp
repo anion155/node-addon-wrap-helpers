@@ -31,6 +31,11 @@ public:
   operator const field_type() const { return get(); }
 };
 
+class Methods {
+public:
+  int blah();
+};
+
 class A : public nawh::object_wrap {
 public:
   std::string prop = "default_prop";
