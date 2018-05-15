@@ -8,6 +8,7 @@
 #include <nawh/errors.hpp>
 #include <nawh/type_traits.hpp>
 #include <nawh/utilities.hpp>
+#include <nawh/static_if.hpp>
 
 #include <nawh/constructor_traits.hpp>
 #include <nawh/callbacks_traits.hpp>
@@ -162,14 +163,12 @@ template <typename ..._Args>
   }
 private:
   object_wrap_helper() {
-#ifdef __cpp_if_constexpr
-    if constexpr (std::is_default_constructible<_Wrapper>::value) {
+    STATIC_IF(std::is_default_constructible<_Wrapper>::value) {
       constructor_default();
-    }
-    if constexpr (std::is_copy_constructible<_Wrapper>::value) {
+    } STATIC_END_IF
+    STATIC_IF(std::is_copy_constructible<_Wrapper>::value) {
       constructor_copy();
-    }
-#endif
+    } STATIC_END_IF
   }
 
 public:

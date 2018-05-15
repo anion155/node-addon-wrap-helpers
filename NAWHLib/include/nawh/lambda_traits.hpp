@@ -30,13 +30,13 @@ template <typename _Functor, typename _Return, std::size_t ..._i, typename ..._A
         if (info.Length() NAWH_ARRAY_INCOMPATIBLE_SIZE_OP sizeof...(_Args)) {
           throw nawh::error_argument_array(sizeof...(_Args));
         }
-        if (std::is_same<_Return, void>::value) {
+        STATIC_IF((std::is_same<_Return, void>::value)) {
           _lambda(nawh::converter<_Args>::to_type(info[_i])...);
           info.GetReturnValue().SetUndefined();
-        } else {
+        } STATIC_ELSE {
           auto result = _lambda(nawh::converter<_Args>::to_type(info[_i])...);
           info.GetReturnValue().Set(nawh::converter<_Return>::to_value(result));
-        }
+        } STATIC_END_IF
       } NAWH_CATCH;
     }
   };
